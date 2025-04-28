@@ -40,7 +40,7 @@ public:
     float tinhDoDai() const {
         int dx = B.getX() - A.getX();
         int dy = B.getY() - A.getY();
-        return sqrt(dx * dx + dy * dy); // sqrt((x2 - x1)^2 + (y2 - y1)^2)
+        return sqrt(dx * dx + dy * dy);
     }
     
     void print(){
