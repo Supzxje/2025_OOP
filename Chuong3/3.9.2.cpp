@@ -35,12 +35,12 @@ public:
     ELEPHANT() {} 
 
     void set(int a, float w, int s, int r) {
-        ANIMAL::set(a, w, s); // gọi hàm set của lớp cha
+        ANIMAL::set(a, w, s); 
         root = r;
     }
 
     void print() {
-        ANIMAL::print(); // gọi hàm print của lớp cha
+        ANIMAL::print();
         cout << "Xuat xu: " << (root == 0 ? "Chau A" : "Chau Phi") << endl;
     }
 
