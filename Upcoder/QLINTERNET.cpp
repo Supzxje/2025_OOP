@@ -3,13 +3,12 @@
 #include <string>
 using namespace std;
 
-// Lớp cơ sở
 class KhachHang {
 protected:
     string hoTen;
     int thoiGianSuDung;
     int soMaySuDung;
-    static int donGia; // đơn giá chung
+    static int donGia; 
 public:
     KhachHang() : hoTen(""), thoiGianSuDung(0), soMaySuDung(0) {}
     KhachHang(string ten, int tg, int sm) : hoTen(ten), thoiGianSuDung(tg), soMaySuDung(sm) {}
@@ -24,7 +23,6 @@ public:
 
 int KhachHang::donGia = 0;
 
-// Lớp khách VIP
 class KhachVIP : public KhachHang {
 private:
     static int donGiaVIP;

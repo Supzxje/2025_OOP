@@ -2,7 +2,6 @@
 using namespace std;
 
 class phanso{
-    protected:
     int t,m;
     public:
     phanso(int _t = 0,int _m = 1){
@@ -25,6 +24,7 @@ class phanso{
     int getTu(){ return t;}
     int getMau(){ return m;}
 };
+
 class honso: public phanso{
     int n;
     public:
