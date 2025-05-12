@@ -96,9 +96,9 @@ public:
         return data[i];
     }
 
-    const double& operator[](int i) const {
-        return data[i];
-    }
+    // const double& operator[](int i) const {
+    //     return data[i];
+    // }
 
     DaThuc& operator++() {
         for (double x : data) ++x;
