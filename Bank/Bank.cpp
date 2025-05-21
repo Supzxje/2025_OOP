@@ -1,7 +1,6 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <memory>
 #include <windows.h>
 #include <conio.h>
 
@@ -12,11 +11,13 @@ void setColor(int color) {
     SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
 }
 
-void slowPrint(const string& text, int delayMs = 20) {
+void slowPrint(const string& text, int delayMs = 50) {
     for (char c : text) {
         cout << c << flush;
         Sleep(delayMs);
     }
+    Sleep(2000);
+    setColor(0);
     cout << endl;
 }
 
@@ -27,10 +28,9 @@ int interactiveMenu(const vector<string>& options, const string& title) {
         setColor(11);
         cout << title << "\n\n";
         setColor(7);
-
         for (size_t i = 0; i < options.size(); ++i) {
             if ((int)i == selected) {
-                setColor(112); // nền sáng
+                setColor(32);
                 cout << " > " << options[i] << "\n";
                 setColor(7);
             }
@@ -42,8 +42,8 @@ int interactiveMenu(const vector<string>& options, const string& title) {
         int ch = _getch();
         if (ch == 224) {
             ch = _getch();
-            if (ch == 72) selected = (selected - 1 + options.size()) % options.size(); // lên
-            if (ch == 80) selected = (selected + 1) % options.size(); // xuống
+            if (ch == 72) selected = (selected - 1 + options.size()) % options.size();
+            if (ch == 80) selected = (selected + 1) % options.size();
         }
         else if (ch == 13) {
             return selected;
@@ -62,64 +62,92 @@ public:
     }
     virtual ~Account() {}
 
-    string getUsername() const;
-    bool checkPassword(const string& pass) const;
+    string getUsername() const { return username; }
+    bool checkPassword(const string& pass) const { return password == pass; }
 
     virtual void displayMenu() = 0;
 };
-
-string Account::getUsername() const{
-    return username;
-}
-
-bool Account::checkPassword(const string& pass) const {
-    return password == pass;
-}
 
 // =================== NGƯỜI DÙNG ===================
 class BankUser : public Account {
 private:
     double balance;
+    vector<BankUser*>& allUsers;
 public:
-    BankUser(const string& user, const string& pass, double bal = 0)
-        : Account(user, pass), balance(bal) {
+    BankUser(const string& user, const string& pass, vector<BankUser*>& usersRef, double bal = 0)
+        : Account(user, pass), balance(bal), allUsers(usersRef) {
     }
 
-    void deposit(double amount);
-    void withdraw(double amount);
     void checkBalance() const;
     void displayMenu() override;
+
+    BankUser& operator+=(double amount);
+    BankUser& operator-=(double amount);
+    friend BankUser& operator>>(BankUser& from, BankUser& to);
 };
 
-void BankUser::deposit(double amount) {
+BankUser& BankUser::operator+=(double amount) {
     if (amount > 0) {
         balance += amount;
-        cout << "Nap tien thanh cong.\n";
+        setColor(10);
+        slowPrint("Nap tien thanh cong.\n");
     }
     else {
+        setColor(12);
         cout << "So tien khong hop le.\n";
     }
+    setColor(7);
+    return *this;
 }
 
-void BankUser::withdraw(double amount) {
+BankUser& BankUser::operator-=(double amount) {
     if (amount > 0 && amount <= balance) {
         balance -= amount;
-        cout << "Rut tien thanh cong.\n";
+        setColor(10);
+        slowPrint("Rut tien thanh cong.\n");
     }
     else {
+        setColor(12);
         cout << "So tien khong hop le hoac khong du.\n";
     }
+    setColor(7);
+    return *this;
+}
+
+BankUser& operator>>(BankUser& from, BankUser& to) {
+    double amount;
+    setColor(8);
+    cout << "Nhap so tien muon chuyen: ";
+    setColor(7);
+    cin >> amount;
+    if (amount > 0 && from.balance >= amount) {
+        from.balance -= amount;
+        to.balance += amount;
+        setColor(10);
+        slowPrint("Chuyen tien thanh cong.\n");
+    }
+    else {
+        setColor(12);
+        cout << "Chuyen tien that bai.\n";
+    }
+    setColor(7);
+    return from;
 }
 
 void BankUser::checkBalance() const {
-    cout << "So du hien tai: " << balance << " VND\n";
+    setColor(8);
+    cout << "So du hien tai: ";
+    setColor(3);
+    cout << balance << " VND\n";
+    Sleep(3000);
 }
 
-void BankUser::displayMenu() override {
+void BankUser::displayMenu() {
     vector<string> menu = {
         "Nap tien",
         "Rut tien",
         "Kiem tra so du",
+        "Chuyen tien",
         "Dang xuat"
     };
     int choice;
@@ -128,77 +156,110 @@ void BankUser::displayMenu() override {
         switch (choice) {
         case 0: {
             double amount;
+            setColor(8);
             cout << "Nhap so tien nap: ";
+            setColor(7);
             cin >> amount;
-            deposit(amount);
+            *this += amount;
             break;
         }
         case 1: {
             double amount;
+            setColor(8);
             cout << "Nhap so tien rut: ";
+            setColor(7);
             cin >> amount;
-            withdraw(amount);
+            *this -= amount;
             break;
         }
         case 2:
             checkBalance();
             break;
+        case 3: {
+            string target;
+            setColor(8);
+            cout << "Nhap ten nguoi nhan: ";
+            setColor(7);
+            cin >> target;
+            bool found = false;
+            for (auto& u : allUsers) {
+                if (u->getUsername() == target) {
+                    *this >> *u;
+                    found = true;
+                    break;
+                }
+            }
+            setColor(12);
+            if (!found) slowPrint("Khong tim thay nguoi nhan.\n");
+            setColor(7);
+            break;
         }
-        system("pause");
-    } while (choice != 3);
+        }
+    } while (choice != 4);
     slowPrint("Dang xuat...");
 }
 
 // =================== ADMIN ===================
 class Admin : public Account {
 private:
-    vector<shared_ptr<BankUser>>& users;
+    vector<BankUser*>& users;
 public:
-    Admin(const string& user, const string& pass, vector<shared_ptr<BankUser>>& userList)
+    Admin(const string& user, const string& pass, vector<BankUser*>& userList)
         : Account(user, pass), users(userList) {
     }
 
     void addUser();
-
     void removeUser();
-
     void listUsers() const;
-
     void displayMenu() override;
 };
 
 void Admin::addUser() {
     string uname, pword;
+    setColor(8);
     cout << "Nhap ten dang nhap moi: ";
+    setColor(7);
     cin >> uname;
+    setColor(8);
     cout << "Nhap mat khau: ";
+    setColor(7);
     cin >> pword;
-    users.push_back(make_shared<BankUser>(uname, pword));
-    cout << "Them nguoi dung thanh cong.\n";
+    users.push_back(new BankUser(uname, pword, users));
+    setColor(10);
+    slowPrint("Them nguoi dung thanh cong.\n");
 }
 
 void Admin::removeUser() {
     string uname;
+    setColor(8);
     cout << "Nhap ten nguoi dung can xoa: ";
+    setColor(7);
     cin >> uname;
     for (auto it = users.begin(); it != users.end(); ++it) {
         if ((*it)->getUsername() == uname) {
+            delete* it;
             users.erase(it);
-            cout << "Xoa nguoi dung thanh cong.\n";
+            setColor(10);
+            slowPrint("Xoa nguoi dung thanh cong.\n");
             return;
         }
     }
-    cout << "Khong tim thay nguoi dung.\n";
+    setColor(12);
+    slowPrint("Khong tim thay nguoi dung.\n");
+    setColor(7);
 }
 
 void Admin::listUsers() const {
+    setColor(8);
     cout << "--- DANH SACH NGUOI DUNG ---\n";
+    setColor(15);
     for (const auto& u : users) {
         cout << " - " << u->getUsername() << '\n';
     }
+    Sleep(2000);
 }
 
-void Admin::displayMenu() override {
+void Admin::displayMenu() {
     vector<string> menu = {
         "Them nguoi dung",
         "Xoa nguoi dung",
@@ -219,49 +280,51 @@ void Admin::displayMenu() override {
             listUsers();
             break;
         }
-        system("pause");
     } while (choice != 3);
     slowPrint("Dang xuat...");
 }
+
 // =================== HỆ THỐNG CHÍNH ===================
 class BankSystem {
 private:
-    vector<shared_ptr<BankUser>> users;
-    vector<shared_ptr<Admin>> admins;
+    vector<BankUser*> users;
+    vector<Admin*> admins;
 public:
     BankSystem();
-
+    ~BankSystem();
     void login();
-
-    void run() {
-        vector<string> menu = {
-            "Dang nhap",
-            "Thoat"
-        };
-        int choice;
-        do {
-            choice = interactiveMenu(menu, "=== HE THONG NGAN HANG ===");
-            if (choice == 0) login();
-        } while (choice != 1);
-        slowPrint("Tam biet!");
-    }
+    void run();
 };
 
 BankSystem::BankSystem() {
-    admins.push_back(make_shared<Admin>("admin", "admin123", users));
-    users.push_back(make_shared<BankUser>("user1", "123"));
+    admins.push_back(new Admin("admin1", "123", users));
+    admins.push_back(new Admin("admin2", "123", users));
+    users.push_back(new BankUser("user1", "123", users, 100000));
+    users.push_back(new BankUser("user2", "123", users, 100000));
+    users.push_back(new BankUser("user3", "123", users, 100000));
+}
+
+BankSystem::~BankSystem() {
+    for (auto u : users) delete u;
+    for (auto a : admins) delete a;
 }
 
 void BankSystem::login() {
     string uname, pword;
+    setColor(8);
     cout << "Ten dang nhap: ";
+    setColor(7);
     cin >> uname;
+    setColor(8);
     cout << "Mat khau: ";
+    setColor(7);
     cin >> pword;
 
     for (auto& admin : admins) {
         if (admin->getUsername() == uname && admin->checkPassword(pword)) {
+            setColor(10);
             slowPrint("Dang nhap thanh cong (admin).\n");
+            setColor(7);
             admin->displayMenu();
             return;
         }
@@ -269,7 +332,9 @@ void BankSystem::login() {
 
     for (auto& user : users) {
         if (user->getUsername() == uname && user->checkPassword(pword)) {
+            setColor(10);
             slowPrint("Dang nhap thanh cong (nguoi dung).\n");
+            setColor(7);
             user->displayMenu();
             return;
         }
