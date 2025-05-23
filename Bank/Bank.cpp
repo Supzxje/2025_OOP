@@ -1,26 +1,410 @@
 #include <iostream>
-#include <string>
 #include <vector>
+#include <string>
+#include <windows.h>
+#include <conio.h>
+
 using namespace std;
 
-class Account{
-    string username, password;
+// =================== TIỆN ÍCH HIỂN THỊ ===================
+void setColor(int color) {
+    SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
+}
 
+void slowPrint(const string& text, int delayMs = 50) {
+    for (char c : text) {
+        cout << c << flush;
+        Sleep(delayMs);
+    }
+    Sleep(2000);
+    setColor(0);
+    cout << endl;
+}
+
+int interactiveMenu(const vector<string>& options, const string& title) {
+    int selected = 0;
+    while (true) {
+        system("cls");
+        setColor(11);
+        cout << title << "\n\n";
+        setColor(7);
+        for (size_t i = 0; i < options.size(); ++i) {
+            if ((int)i == selected) {
+                setColor(32);
+                cout << " > " << options[i] << "\n";
+                setColor(7);
+            }
+            else {
+                cout << "   " << options[i] << "\n";
+            }
+        }
+
+        int ch = _getch();
+        if (ch == 224) {
+            ch = _getch();
+            if (ch == 72) selected = (selected - 1 + options.size()) % options.size();
+            if (ch == 80) selected = (selected + 1) % options.size();
+        }
+        else if (ch == 13) {
+            return selected;
+        }
+    }
+}
+
+// =================== CLASS CƠ SỞ ===================
+class Account {
+protected:
+    string username;
+    string password;
 public:
-    Account(string u = "",string p = "");
+    Account(const string& user = "", const string& pass = "")
+        : username(user), password(pass) {
+    }
+    virtual ~Account() {}
 
-    Bool checkPassword(string u, string p);
+    string getUsername() const;
+    string getPassword() const;
+    bool checkPassword(const string& pass) const;
+    virtual void displayMenu() = 0;
+};
 
-    string getUsername();
-
-    void showMenu() = 0;
+string Account::getUsername() const {
+    return username;
 }
 
-Account::Account(string u = "",string p = ""){
-    username = u;
-    password = p;
+string Account::getPassword() const {
+    return password;
 }
 
-Account::checkPassword(string u, string p){
-    return(username == u && password == p);
+bool Account::checkPassword(const string& pass) const {
+    return password == pass;
+}
+
+// =================== NGƯỜI DÙNG ===================
+class BankUser : public Account {
+private:
+    double balance;
+    vector<BankUser*>& allUsers; 
+public:
+    BankUser(const string& user, const string& pass, vector<BankUser*>& usersRef, double bal = 0)
+        : Account(user, pass), balance(bal), allUsers(usersRef) {
+    }
+
+    void checkBalance() const;
+    void displayMenu() override;
+
+    BankUser& operator+=(double amount);
+    BankUser& operator-=(double amount);
+    friend BankUser& operator>>(BankUser& from, BankUser& to);
+    friend istream& operator>>(istream& in, BankUser& user);
+};
+
+istream& operator>>(istream& in, BankUser& user) {
+    setColor(8);
+    cout << "Ten dang nhap (nguoi dung): ";
+    setColor(7);
+    in >> user.username;
+    setColor(8);
+    cout << "Mat khau: ";
+    setColor(7);
+    in >> user.password;
+    return in;
+}
+
+BankUser& BankUser::operator+=(double amount) {
+    if (amount > 0) {
+        balance += amount;
+        setColor(10);
+        slowPrint("Nap tien thanh cong.\n");
+    }
+    else {
+        setColor(12);
+        cout << "So tien khong hop le.\n";
+    }
+    setColor(7);
+    return *this;
+}
+
+BankUser& BankUser::operator-=(double amount) {
+    if (amount > 0 && amount <= balance) {
+        balance -= amount;
+        setColor(10);
+        slowPrint("Rut tien thanh cong.\n");
+    }
+    else {
+        setColor(12);
+        cout << "So tien khong hop le hoac khong du.\n";
+    }
+    setColor(7);
+    return *this;
+}
+
+BankUser& operator>>(BankUser& from, BankUser& to) {
+    double amount;
+    setColor(8);
+    cout << "Nhap so tien muon chuyen: ";
+    setColor(7);
+    cin >> amount;
+    if (amount > 0 && from.balance >= amount) {
+        from.balance -= amount;
+        to.balance += amount;
+        setColor(10);
+        slowPrint("Chuyen tien thanh cong.\n");
+    }
+    else {
+        setColor(12);
+        cout << "Chuyen tien that bai.\n";
+    }
+    setColor(7);
+    return from;
+}
+
+void BankUser::checkBalance() const {
+    setColor(8);
+    cout << "So du hien tai: ";
+    setColor(3);
+    cout << balance << " VND\n";
+    Sleep(3000);
+}
+
+void BankUser::displayMenu() {
+    vector<string> menu = {
+        "Nap tien",
+        "Rut tien",
+        "Kiem tra so du",
+        "Chuyen tien",
+        "Dang xuat"
+    };
+    int choice;
+    do {
+        choice = interactiveMenu(menu, "--- MENU NGUOI DUNG ---");
+        switch (choice) {
+        case 0: {
+            double amount;
+            setColor(8);
+            cout << "Nhap so tien nap: ";
+            setColor(7);
+            cin >> amount;
+            *this += amount;
+            break;
+        }
+        case 1: {
+            double amount;
+            setColor(8);
+            cout << "Nhap so tien rut: ";
+            setColor(7);
+            cin >> amount;
+            *this -= amount;
+            break;
+        }
+        case 2:
+            checkBalance();
+            break;
+        case 3: {
+            string target;
+            setColor(8);
+            cout << "Nhap ten nguoi nhan: ";
+            setColor(7);
+            cin >> target;
+            bool found = false;
+            for (auto& u : allUsers) {
+                if (u->getUsername() == target) {
+                    *this >> *u;
+                    found = true;
+                    break;
+                }
+            }
+            setColor(12);
+            if (!found) slowPrint("Khong tim thay nguoi nhan.\n");
+            setColor(7);
+            break;
+        }
+        }
+    } while (choice != 4);
+    slowPrint("Dang xuat...");
+}
+
+// =================== ADMIN ===================
+class Admin : public Account {
+private:
+    vector<BankUser*>& users; 
+public:
+    Admin(const string& user, const string& pass, vector<BankUser*>& userList)
+        : Account(user, pass), users(userList) {
+    }
+
+    void addUser();
+    void removeUser();
+    void listUsers() const;
+    void displayMenu() override;
+    friend istream& operator>>(istream& in, Admin& admin);
+};
+
+istream& operator>>(istream& in, Admin& admin) {
+    setColor(8);
+    cout << "Ten dang nhap (admin): ";
+    setColor(7);
+    in >> admin.username;
+    setColor(8);
+    cout << "Mat khau: ";
+    setColor(7);
+    in >> admin.password;
+    return in;
+}
+
+void Admin::addUser() {
+    string uname, pword;
+    setColor(8);
+    cout << "Nhap ten dang nhap moi: ";
+    setColor(7);
+    cin >> uname;
+    setColor(8);
+    cout << "Nhap mat khau: ";
+    setColor(7);
+    cin >> pword;
+    users.push_back(new BankUser(uname, pword, users));
+    setColor(10);
+    slowPrint("Them nguoi dung thanh cong.\n");
+}
+
+void Admin::removeUser() {
+    string uname;
+    setColor(8);
+    cout << "Nhap ten nguoi dung can xoa: ";
+    setColor(7);
+    cin >> uname;
+    for (auto it = users.begin(); it != users.end(); ++it) {
+        if ((*it)->getUsername() == uname) {
+            delete* it;
+            users.erase(it);
+            setColor(10);
+            slowPrint("Xoa nguoi dung thanh cong.\n");
+            return;
+        }
+    }
+    setColor(12);
+    slowPrint("Khong tim thay nguoi dung.\n");
+    setColor(7);
+}
+
+void Admin::listUsers() const {
+    setColor(8);
+    cout << "--- DANH SACH NGUOI DUNG ---\n";
+    setColor(15);
+    for (const auto& u : users) {
+        cout << " - " << u->getUsername() << '\n';
+    }
+    Sleep(2000);
+}
+
+void Admin::displayMenu() {
+    vector<string> menu = {
+        "Them nguoi dung",
+        "Xoa nguoi dung",
+        "Danh sach nguoi dung",
+        "Dang xuat"
+    };
+    int choice;
+    do {
+        choice = interactiveMenu(menu, "--- MENU QUAN TRI VIEN ---");
+        switch (choice) {
+        case 0:
+            addUser();
+            break;
+        case 1:
+            removeUser();
+            break;
+        case 2:
+            listUsers();
+            break;
+        }
+    } while (choice != 3);
+    slowPrint("Dang xuat...");
+}
+
+// =================== HỆ THỐNG CHÍNH ===================
+class BankSystem {
+private:
+    vector<BankUser*> users; 
+    vector<Admin*> admins;
+public:
+    BankSystem();
+    ~BankSystem(); 
+    void login();
+    void run();
+};
+
+BankSystem::BankSystem() {
+    admins.push_back(new Admin("admin1", "123", users));
+    admins.push_back(new Admin("admin2", "123", users));
+    users.push_back(new BankUser("user1", "123", users, 100000));
+    users.push_back(new BankUser("user2", "123", users, 100000));
+    users.push_back(new BankUser("user3", "123", users, 100000));
+}
+
+BankSystem::~BankSystem() {
+    for (auto user : users) {
+        delete user;
+    }
+    for (auto admin : admins) {
+        delete admin; 
+    }
+}
+
+void BankSystem::login() {
+    vector<string> loginTypes = { "Dang nhap Admin", "Dang nhap Nguoi dung", "Quay lai" };
+    int role = interactiveMenu(loginTypes, "--- CHON VAI TRO DANG NHAP ---");
+
+    if (role == 0) { 
+        Admin adminInput("", "", users);
+        cin >> adminInput;
+        for (auto admin : admins) {
+            if (adminInput.getUsername() == admin->getUsername() && admin->checkPassword(adminInput.getPassword())) {
+                setColor(10);
+                slowPrint("Dang nhap thanh cong (admin).\n");
+                setColor(7);
+                admin->displayMenu();
+                return;
+            }
+        }
+    }
+    else if (role == 1) {
+        BankUser userInput("", "", users);
+        cin >> userInput;
+        for (auto user : users) {
+            if (userInput.getUsername() == user->getUsername() && user->checkPassword(userInput.getPassword())) {
+                setColor(10);
+                slowPrint("Dang nhap thanh cong (nguoi dung).\n");
+                setColor(7);
+                user->displayMenu();
+                return;
+            }
+        }
+    }
+
+    if (role != 2) {
+        setColor(12);
+        slowPrint("Sai ten dang nhap hoac mat khau.\n");
+        setColor(7);
+        system("pause");
+    }
+}
+
+void BankSystem::run() {
+    vector<string> menu = {
+        "Dang nhap",
+        "Thoat"
+    };
+    int choice;
+    do {
+        choice = interactiveMenu(menu, "=== HE THONG NGAN HANG ===");
+        if (choice == 0) login();
+    } while (choice != 1);
+    slowPrint("Tam biet!");
+}
+
+int main() {
+    BankSystem system;
+    system.run();
+    return 0;
 }
