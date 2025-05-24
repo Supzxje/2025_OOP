@@ -23,7 +23,7 @@ void slowPrint(const string& text, int delayMs = 50) {
     setColor(0);
     cout << endl;
 }
-// hàm có chức năng tạo các dòng chức năng để lựa (options) và loại menu user hoặc admin ( title)
+// hàm có chức năng tạo các dòng chức năng để lựa chọn (options) và loại menu user hoặc admin ( title)
 int interactiveMenu(const vector<string>& options, const string& title) {
     int selected = 0;
     while (true) {
